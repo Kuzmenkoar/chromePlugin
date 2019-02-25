@@ -1,7 +1,7 @@
 (function(app) {
   "use strict";
 
-  window.iWantStopGameNow = fail
+  window.iWantStopGameNow = false
 
   const config = {
     0: 0,
@@ -27,19 +27,24 @@
   }
 
   class gameBet {
-    timeId = null
-
-    iteration = 1
-    alreadyBetForThisPack = false
-    lastGameLost = false
-
-    lastGameNumber = 0
-    gameNumber = 0
-    winInRow = [0]
-    loseInRow = [0]
-    winMoney = 0
-
     constructor() {
+      this.timeId = null
+
+      this.iteration = 1
+      this.alreadyBetForThisPack = false
+      this.lastGameLost = false
+
+      this.lastGameNumber = 0
+      this.gameNumber = 0
+      this.winInRow = [0]
+      this.loseInRow = [0]
+      this.winMoney = 0
+
+      this.lastWinner = null
+      this.winnerInRow = 0
+      this.winThreeInRowTimes = 0
+      this.winThreeArray = []
+
       this.checkAll = this.checkAll.bind(this)
       this.bet = this.bet.bind(this)
       this.statistic = this.statistic.bind(this)
@@ -52,13 +57,13 @@
     }
 
     bet() {
-      // TODO this is must
+      // TODO this is must && (new Date()).getHours() > 24
 
-      // if (this.iteration === 1 && (new Date()).getHours() > 24 && window.iWantStopGameNow) {
-      //   this.stopGame()
-      //   console.log('Stop for today');
-      //   return;
-      // }
+      if (this.iteration === 1 && window.iWantStopGameNow) {
+        this.stopGame()
+        console.log('Stop for today');
+        return;
+      }
 
       console.log("I`m making bet")
       this.gameNumber++;
@@ -79,7 +84,14 @@
     calculateWin(winnerCount, winnerIndex) {
       const countWinnersForMoney = winnerIndex === 5 ? winnerCount - 1 : winnerCount
       const koef = countWinnersForMoney * 5.20 - 5
-      this.winMoney = this.winMoney + +(config[this.iteration] * koef).toFixed(2) - (config[this.iteration - 1] * 5)
+
+      let prevLost = 0
+
+      for(let i=this.iteration-1; i>0; i--) {
+        prevLost = prevLost + (config[this.iteration - 1] * 5)
+      }
+
+      this.winMoney = this.winMoney + +(config[this.iteration] * koef).toFixed(2) - prevLost
 
       if (this.lastGameLost) {
         this.winInRow.push(1)
@@ -114,6 +126,21 @@
         this.calculateWin(winnerCount, winnerIndex)
       }
 
+      if (winnerCount === 1) {
+        if (this.lastWinner === winnerIndex) {
+          this.winnerInRow++
+        } else {
+          this.winnerInRow = 0
+        }
+      }
+
+      if (this.winnerInRow === 2) {
+        this.winThreeArray.push(winnerIndex)
+        this.winThreeInRowTimes++
+      }
+
+      this.lastWinner = winnerIndex
+
       this.statistic()
 
       return true
@@ -138,13 +165,16 @@
       console.log('loseInRow ', this.loseInRow)
       console.log('missedWin', missedWin)
       console.log('date', new Date())
+
+      console.log('winThreeInRowTimes', this.winThreeInRowTimes)
+      console.log('this.winThreeArray', this.winThreeArray)
       console.log('winMoney', this.winMoney)
 
       window.loseInRow = this.loseInRow
       window.winInRow = this.winInRow
 
       if (this.loseInRow[this.loseInRow.length - 1] === 3) {
-        this.stopGame()
+        // this.stopGame()
 
         console.log('EVERYTHING LOST')
       }
@@ -172,7 +202,7 @@
     }
 
     init() {
-      this.timeId = setInterval(() => this.checkAll() , 500);
+      this.timeId = setInterval(() => this.checkAll() , 1000);
     }
   }
 
